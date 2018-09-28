@@ -80,7 +80,10 @@ model=keras.Sequential()
 
 #just one fully connected layer
 
-model.add(keras.layers.Dense(64*64*3))
+#
+model.add(keras.layers.Conv2D(3,padding = 'same',  kernel_size = (5,5), activation='relu', input_shape=(3,64,64), data_format='channels_first'))
+
+#model.add(keras.layers.Conv2D(3,padding = 'same', activation = 'tanh', kernel_size = (5,5), input_shape=(64,64,3)))
 
 #configure the model
 model.compile(optimizer=tf.train.AdamOptimizer(0.0001),loss='mean_squared_error', metrics=['accuracy'])
@@ -88,15 +91,15 @@ model.compile(optimizer=tf.train.AdamOptimizer(0.0001),loss='mean_squared_error'
 
 #assign training data
 i = 1
-data_input  = np.reshape(inputs[0:i], (i,-1))  # in general   np.reshape(inputs[0:i], (i,-1))
-data_target = np.reshape(targets[0:i], (i,-1))
+data_input  = inputs[0:i] #(i,-1))  # in general   np.reshape(inputs[0:i], (i,-1))
+data_target = targets[0:i]
 
 #print("data_input shape = ", data_input.shape)
 
 #assign validation data
 j = 1
-val_input  = np.reshape(inputs[0:j], (j,-1))
-val_target = np.reshape(targets[0:j], (j,-1))
+val_input  = inputs[0:j]
+val_target = targets[0:j]
 
 #print("val_input shape = ", val_input.shape)
 
@@ -104,6 +107,8 @@ val_target = np.reshape(targets[0:j], (j,-1))
 #train the model
 model.fit(data_input,data_target,epochs=150,batch_size=1,validation_data=(val_input,val_target))
 
+#print 
+model.summary()
 
 
 #apply the model on the data
