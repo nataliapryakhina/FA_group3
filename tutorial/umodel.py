@@ -6,12 +6,12 @@ from os import listdir
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # load dataset
-parameter_oom = 2
-dataDir = "./data/regularFA/"
+parameter_oom = 1
+dataDir = "./data/trainSmallFA/"
 files = listdir(dataDir)
 totalLength = len(files)
-inputs = np.empty((len(files), 3, 128, 128))
-targets = np.empty((len(files), 3, 128, 128))
+inputs = np.empty((len(files), 3, 64, 64))
+targets = np.empty((len(files), 3, 64, 64))
 
 factor = 1
 
@@ -22,7 +22,10 @@ for i, file in enumerate(files):
     npfile = np.load(dataDir + file)
     d = npfile['a']
     inputs[i] = d[0:3]  # inx, iny, mask
+    squared_max_vel = np.amax(inputs[i][0]*inputs[i][0] + inputs[i][1] * inputs[i][1])
     targets[i] = d[3:6]  # p, velx, vely
+    targets[i][0] /= squared_max_vel
+    targets[i][1:3] /= np.sqrt(squared_max_vel)
 
 # print("inputs shape = ", inputs.shape)
 print(np.shape(targets[:, 1, :, :].flatten()))
@@ -59,7 +62,7 @@ def transposednorm(x, y, outputchannels):
     return x
 
 
-inputs = keras.layers.Input(shape=(3, 128, 128))
+inputs = keras.layers.Input(shape=(3, 64, 64))
 c1 = convnorm(inputs, 4*factor)
 c2 = convnorm(c1, 8*factor)
 c3 = convnorm(c2, 16*factor)
