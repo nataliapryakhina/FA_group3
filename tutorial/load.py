@@ -9,22 +9,22 @@ import fileinput
 
 from tensorflow.keras.callbacks import ModelCheckpoint
 
-
 # load dataset
-dataDir = "data/trainSmallFA/"
+dataDir = "data/regularFA/"
 files = listdir(dataDir)
-files.sort()
 totalLength = len(files)
-inputs = np.empty((len(files)+1, 3, 64, 64))
-targets = np.empty((len(files)+1, 3, 64, 64))
+inputs = np.empty((len(files)+1, 3, 128, 128))
+targets = np.empty((len(files)+1, 3, 128, 128))
+
 
 for i, file in enumerate(files):
     npfile = np.load(dataDir + file)
     d = npfile['a']
     inputs[i] = d[0:3]  # inx, iny, mask
     targets[i] = d[3:6]  # p, velx, vely
-for x in range(64):
-    for y in range(64):
+
+for x in range(128):
+    for y in range(128):
         if (20 < x < 44) and (20 < y < 44):
             inputs[-1, 0, x, y] = 0
             inputs[-1, 1, x, y] = 0
@@ -47,53 +47,51 @@ def showme(prediction, truth):
     # predicted data
     plt.subplot(331)
     plt.title('Predicted pressure')
-    plt.imshow(prediction[0, :, :],cmap='jet', vmin=-1,vmax=1)
+    plt.imshow(prediction[0, :, :],cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
     plt.subplot(332)
     plt.title('Predicted x velocity')
-    plt.imshow(prediction[1, :, :],cmap='jet', vmin=-1,vmax=1)
+    plt.imshow(prediction[1, :, :],cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
     plt.subplot(333)
     plt.title('Predicted y velocity')
-    plt.imshow(prediction[2, :, :],cmap='jet', vmin=-1,vmax=1)
+    plt.imshow(prediction[2, :, :],cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
 
     # ground truth data
     plt.subplot(334)
     plt.title('Ground truth pressure')
-    plt.imshow(truth[0, :, :],cmap='jet', vmin=-1,vmax=1)
+    plt.imshow(truth[0, :, :],cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
     plt.subplot(335)
     plt.title('Ground truth x velocity')
-    plt.imshow(truth[1, :, :],cmap='jet', vmin=-1,vmax=1)
+    plt.imshow(truth[1, :, :],cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
     plt.subplot(336)
     plt.title('Ground truth y velocity')
-    plt.imshow(truth[2, :, :],cmap='jet', vmin=-1,vmax=1)
+    plt.imshow(truth[2, :, :],cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
 
     # difference
     plt.subplot(337)
     plt.title('Difference pressure')
-    plt.imshow((truth[0, :, :] - prediction[0, :, :]),cmap='jet', vmin=-1,vmax=1)
+    plt.imshow((truth[0, :, :] - prediction[0, :, :]),cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
     plt.subplot(338)
     plt.title('Difference x velocity')
-    plt.imshow((truth[1, :, :] - prediction[1, :, :]),cmap='jet', vmin=-1,vmax=1)
+    plt.imshow((truth[1, :, :] - prediction[1, :, :]),cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
     plt.subplot(339)
     plt.title('Difference y velocity')
-    plt.imshow((truth[2, :, :] - prediction[2, :, :]),cmap='jet', vmin=-1,vmax=1)
+    plt.imshow((truth[2, :, :] - prediction[2, :, :]),cmap='jet')#, vmin=-1,vmax=1)
     plt.colorbar()
 
     plt.show()
 
-
 print('loading model...')
-model = load_model('networks/bestnetwork')
-valinput = inputs[650:752]
-valtarget = targets[650:752]
-showme(valinput[-1], targets[-1])
+model = load_model('networks/bestnetworkupsample_2')
+valinput = inputs[6000:7000]
+valtarget = targets[6000:7000]
 print('predicting inputs...')
 predictions = model.predict(valinput, batch_size=10)
 print('ready!')
@@ -106,7 +104,9 @@ for line in fileinput.input():
         showme(pred, truth)
     except ValueError:
         print('loading new model...')
-        predictions = load_model('networks/'+line).predict(valinput, batch_size=10)
+        model = load_model('networks/'+line)
+        print('predicting new inputs')
+        model.predict(valinput, batch_size=10)
         print('ready!')
 
 

@@ -6,12 +6,17 @@ from os import listdir
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # load dataset
-dataDir = "./data/trainSmallFA/"
+parameter_oom = 2
+dataDir = "./data/regularFA/"
 files = listdir(dataDir)
-files.sort()
 totalLength = len(files)
-inputs = np.empty((len(files), 3, 64, 64))
-targets = np.empty((len(files), 3, 64, 64))
+inputs = np.empty((len(files), 3, 128, 128))
+targets = np.empty((len(files), 3, 128, 128))
+
+factor = 1
+
+for i in range(parameter_oom):
+    factor *= 2
 
 for i, file in enumerate(files):
     npfile = np.load(dataDir + file)
@@ -28,12 +33,12 @@ targets[:, 1:3, :, :] /= maxvel
 targets[:, 0, :, :] /= np.amax(targets[:, 0, :, :])
 
 # assign training data
-i = 600
+i = 1
 data_input = inputs[0:i]  # (i,-1))  # in general   np.reshape(inputs[0:i], (i,-1))
 data_target = targets[0:i]
 
 # assign validation data
-j = 150
+j = 1000
 val_input = inputs[i:i+j]
 val_target = targets[i:i+j]
 
@@ -41,35 +46,37 @@ val_target = targets[i:i+j]
 
 def convnorm(x, outputchannels):
     x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format='channels_first', strides=(2, 2), activation='relu')(x)
-    x = keras.layers.Dropout(0.4)(x)
+    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format='channels_first', strides=(2, 2))(x)
+    x = keras.layers.Dropout(0.6)(x)
     return x
 
 
 def transposednorm(x, y, outputchannels):
     x = keras.layers.concatenate([x, y], axis=1)
     x = keras.layers.BatchNormalization(axis=1)(x)
-    x = keras.layers.Conv2DTranspose(outputchannels, padding='same', kernel_size=4, data_format='channels_first', strides=(2, 2))(x)
+    x = keras.layers.UpSampling2D(size=(2, 2), data_format='channels_first')(x)
+    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format='channels_first', strides=(1, 1))(x)
     return x
 
 
-inputs = keras.layers.Input(shape=(3, 64, 64))
-c1 = convnorm(inputs, 64)
-c2 = convnorm(c1, 128)
-c3 = convnorm(c2, 256)
-c4 = convnorm(c3, 512)
-c5 = convnorm(c4, 512)
-c6 = convnorm(c5, 512)
+inputs = keras.layers.Input(shape=(3, 128, 128))
+c1 = convnorm(inputs, 4*factor)
+c2 = convnorm(c1, 8*factor)
+c3 = convnorm(c2, 16*factor)
+c4 = convnorm(c3, 32*factor)
+c5 = convnorm(c4, 32*factor)
+c6 = convnorm(c5, 32*factor)
 
-tc5 = keras.layers.Conv2DTranspose(512, padding='same', kernel_size=2, data_format='channels_first', strides=(2, 2))(c6)
-tc4 = transposednorm(tc5, c5, 512)
-tc3 = transposednorm(tc4, c4, 512)
-tc2 = transposednorm(tc3, c3, 256)
-tc1 = transposednorm(tc2, c2, 128)
+x = keras.layers.UpSampling2D(size=(2, 2), data_format='channels_first')(c6)
+tc5 = keras.layers.Conv2D(32*factor, padding='same', kernel_size=2, data_format='channels_first', strides=(1, 1))(x)
+tc4 = transposednorm(tc5, c5, 32*factor)
+tc3 = transposednorm(tc4, c4, 32*factor)
+tc2 = transposednorm(tc3, c3, 16*factor)
+tc1 = transposednorm(tc2, c2, 8*factor)
 outputs = transposednorm(tc1, c1, 3)
 mm = keras.models.Model(inputs=inputs, outputs=outputs)
 mm.compile(optimizer=tf.train.AdamOptimizer(0.0001), loss='mean_squared_error', metrics=['accuracy'])
-callb = [ModelCheckpoint('networks/bestnetworkrelu', monitor='val_loss', verbose=1, save_best_only=True, mode='min')]
+callb = [ModelCheckpoint('networks/bestnetworkupsample_'+str(parameter_oom), monitor='val_loss', verbose=1, save_best_only=True, mode='min')]
 # print("data_input shape = ", data_input.shape)
 
 
@@ -78,7 +85,7 @@ callb = [ModelCheckpoint('networks/bestnetworkrelu', monitor='val_loss', verbose
 
 # train the model
 # model.fit(data_input, data_target, epochs=150, batch_size=10, validation_data=(val_input, val_target))
-history = mm.fit(data_input, data_target, epochs=50, batch_size=20, validation_data=(val_input, val_target), callbacks=callb)
+history = mm.fit(data_input, data_target, epochs=1, batch_size=20, validation_data=(val_input, val_target))
 
 # print
 print(mm.summary())
