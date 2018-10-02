@@ -27,6 +27,7 @@ for i, file in enumerate(files):
     squared_max_vel = np.amax(inputs[i][0]*inputs[i][0] + inputs[i][1] * inputs[i][1])
     targets[i] = np.transpose(d[3:6], (1,2,0))  # p, velx, vely
     targets[i][:, :, 0] /= squared_max_vel
+    targets[i][:, :, 0] -= np.mean(targets[i, :, :, 0])
     targets[i][:, :, 1:3] /= np.sqrt(squared_max_vel)
     # Moving channels to last dimension: 3 x a x a --> a x a x 3
 
@@ -53,7 +54,7 @@ concat_axis=-1
 
 def convnorm(x, outputchannels):
     x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format=data_format, strides=(2, 2))(x)
+    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format=data_format, strides=(2, 2), activation='relu')(x)
     x = keras.layers.Dropout(0.6)(x)
     return x
 
@@ -62,7 +63,7 @@ def transposednorm(x, y, outputchannels):
     x = keras.layers.concatenate([x, y], axis=concat_axis)
     x = keras.layers.BatchNormalization(axis=concat_axis)(x)
     x = keras.layers.UpSampling2D(size=(2, 2), data_format=data_format)(x)
-    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format=data_format, strides=(1, 1))(x)
+    x = keras.layers.Conv2D(outputchannels, padding='same', kernel_size=4, data_format=data_format, strides=(1, 1), activation='relu')(x)
     return x
 
 
@@ -94,7 +95,7 @@ print("Compiling network...DONE")
 print("Training network...")
 # train the model
 # model.fit(data_input, data_target, epochs=150, batch_size=10, validation_data=(val_input, val_target))
-history = mm.fit(data_input, data_target, epochs=1, batch_size=20, validation_data=(val_input, val_target))
+history = mm.fit(data_input, data_target, epochs=1, batch_size=20, validation_data=(val_input, val_target), callbacks=callb)
 print("Training network...DONE")
 
 # print
